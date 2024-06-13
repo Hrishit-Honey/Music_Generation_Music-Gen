@@ -1,3 +1,4 @@
+
 "use client";
 import React, { useState } from 'react';
 
@@ -20,7 +21,7 @@ const Music: React.FC = () => {
     setIsLoading((prev) => prev.map((load, i) => (i === index ? true : load)));
 
     const prompt = prompts[index];
-    
+    setErrors((prev) => [...prev.slice(0, index), '', ...prev.slice(index + 1)]);
 
     try {
       const response = await fetch('/api/music', {
@@ -32,22 +33,21 @@ const Music: React.FC = () => {
       });
 
       if (response.ok) {
-        const data = await response.json();
-        const { url } = data;
-        setAudioUrls([...audioUrls.slice(0, index), url, ...audioUrls.slice(index + 1)]);
+        const { url } = await response.json();
+        setAudioUrls((prev) => [...prev.slice(0, index), url, ...prev.slice(index + 1)]);
       } else {
         const errorMessage = await response.text();
         throw new Error(errorMessage || 'Failed to generate music');
       }
     } catch (error: any) {
-      setErrors([...errors.slice(0, index), error.message || 'Failed to generate music', ...errors.slice(index + 1)]);
+      setErrors((prev) => [...prev.slice(0, index), error.message || 'Failed to generate music', ...prev.slice(index + 1)]);
     } finally {
       setIsLoading((prev) => prev.map((load, i) => (i === index ? false : load)));
     }
   };
 
   const handlePromptChange = (index: number, value: string) => {
-    setPrompts([...prompts.slice(0, index), value, ...prompts.slice(index + 1)]);
+    setPrompts((prev) => [...prev.slice(0, index), value, ...prev.slice(index + 1)]);
   };
 
   return (
