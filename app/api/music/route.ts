@@ -1,3 +1,4 @@
+
 import { NextRequest, NextResponse } from 'next/server';
 import axios from 'axios';
 import fs from 'fs';
@@ -30,7 +31,7 @@ export const POST = async (req: NextRequest) => {
     });
 
     const buffer = Buffer.from(response.data);
-    const filename = `generated_music.wav`;
+    const filename = `generated_music_${Date.now()}_${Math.random().toString(36).substring(7)}.wav`;
     saveAudioBlob(buffer, filename);
 
     return NextResponse.json({ url: `/${filename}` });
@@ -38,4 +39,3 @@ export const POST = async (req: NextRequest) => {
     console.error('Error generating music:', error.response?.data || error.message);
     return NextResponse.json({ error: 'Failed to generate music' }, { status: 500 });
   }
-};
