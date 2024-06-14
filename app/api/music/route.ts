@@ -1,4 +1,3 @@
-
 import { NextRequest, NextResponse } from 'next/server';
 import axios from 'axios';
 import fs from 'fs';
@@ -13,16 +12,14 @@ const saveAudioBlob = (buffer: Buffer, filename: string) => {
 };
 
 export const POST = async (req: NextRequest) => {
-  const { prompt } = await req.json();
-
-  if (!prompt) {
-    return NextResponse.json({ error: 'Prompt is required' }, { status: 400 });
-  }
-
   try {
-    const response = await axios.post(HUGGING_FACE_API_URL, {
-      inputs: prompt,
-    }, {
+    const { prompt } = await req.json();
+
+    if (!HUGGING_FACE_API_KEY) {
+      throw new Error('HUGGING_FACE_API_KEY is not defined');
+    }
+
+    const response = await axios.post(HUGGING_FACE_API_URL, { prompt }, {
       headers: {
         Authorization: `Bearer ${HUGGING_FACE_API_KEY}`,
         'Content-Type': 'application/json',
@@ -31,11 +28,13 @@ export const POST = async (req: NextRequest) => {
     });
 
     const buffer = Buffer.from(response.data);
-    const filename = `generated_music_${Date.now()}_${Math.random().toString(36).substring(7)}.wav`;
+    const filename = `generated_music.wav`;
     saveAudioBlob(buffer, filename);
 
-    return NextResponse.json({ url: `/${filename}` });
+    return NextResponse.json({ prompt, url: `/${filename}` });
   } catch (error: any) {
     console.error('Error generating music:', error.response?.data || error.message);
-    return NextResponse.json({ error: 'Failed to generate music' }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to generate music', prompt: null }, { status: 500 });
   }
+};
+
