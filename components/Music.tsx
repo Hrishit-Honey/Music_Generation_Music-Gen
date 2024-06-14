@@ -1,88 +1,97 @@
-
 "use client";
 import React, { useState } from 'react';
+import axios from 'axios';
+
+const moods: Record<string, string> = {
+  Happy: 'Pop, Guitar, birdsong, ambient beats',
+  Sad: 'Soft, piano, rainfall, pink noise',
+  Sleepy: 'Ambient, flute, ocean waves, brown noise',
+  Exciting: 'Funk, Guitar, river stream, Rhythmic drumming',
+  Spiritual: 'Ambient, violin, Forest ambience, Rhythmic Drumming',
+  Peaceful: 'Soothing, piano, ocean waves, brown noise',
+  Motivated: 'Pop, guitar, birdsong, ambient beats',
+  Calm: 'Jazz, flute, rainfall, pink noise',
+  Stress: 'Soothing, violin, forest ambience, brown noise',
+};
 
 const Music: React.FC = () => {
-  const [prompts, setPrompts] = useState<string[]>(['']);
-  const [audioUrls, setAudioUrls] = useState<string[]>([]);
-  const [errors, setErrors] = useState<string[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean[]>([]);
+  const [selectedMood, setSelectedMood] = useState<string>('Happy');
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [prompt, setPrompt] = useState<string | null>(null); 
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
 
-  const handleAddSlot = () => {
-    setPrompts([...prompts, '']);
-    setAudioUrls([...audioUrls, '']);
-    setErrors([...errors, '']);
-    setIsLoading([...isLoading, false]);
-  };
-
-  const handleSubmit = async (event: React.FormEvent, index: number) => {
-    event.preventDefault();
-
-    setIsLoading((prev) => prev.map((load, i) => (i === index ? true : load)));
-
-    const prompt = prompts[index];
-    setErrors((prev) => [...prev.slice(0, index), '', ...prev.slice(index + 1)]);
-
+  const handleGenerateMusic = async () => {
+    setIsLoading(true);
+  
     try {
-      const response = await fetch('/api/music', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ prompt }),
+      const response = await axios.post('/api/getprompt', {
+        mood: selectedMood,
+        details: moods[selectedMood],
       });
-
-      if (response.ok) {
-        const { url } = await response.json();
-        setAudioUrls((prev) => [...prev.slice(0, index), url, ...prev.slice(index + 1)]);
+  
+      if (response.status === 200) {
+        const { prompt } = response.data;
+        setPrompt(prompt);
+        await generateMusic(prompt);
       } else {
-        const errorMessage = await response.text();
-        throw new Error(errorMessage || 'Failed to generate music');
+        throw new Error(response.data.error || 'Failed to generate prompt');
       }
-    } catch (error: any) {
-      setErrors((prev) => [...prev.slice(0, index), error.message || 'Failed to generate music', ...prev.slice(index + 1)]);
+    } catch (error:any) {
+      setError(error.message || 'Failed to generate music');
     } finally {
-      setIsLoading((prev) => prev.map((load, i) => (i === index ? false : load)));
+      setIsLoading(false);
     }
   };
-
-  const handlePromptChange = (index: number, value: string) => {
-    setPrompts((prev) => [...prev.slice(0, index), value, ...prev.slice(index + 1)]);
+  
+  const generateMusic = async (prompt: string) => {
+    try {
+      const response = await axios.post('/api/music', {
+        prompt,
+      });
+  
+      if (response.status === 200) {
+        const { url } = response.data;
+        setAudioUrl(url);
+        setError(null);
+      } else {
+        throw new Error(response.data.error || 'Failed to generate music');
+      }
+    } catch (error:any) {
+      setError(error.message || 'Failed to generate music');
+    }
+  };
+  
+  const handleMoodChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
+    setSelectedMood(event.target.value);
   };
 
   return (
     <div className="container">
       <div className="content">
-        <h1 style={{ color: 'black' }}>Generate Music</h1>
-        {prompts.map((prompt, index) => (
-          <div key={index}>
-            <form onSubmit={(e) => handleSubmit(e, index)} style={{ marginBottom: '20px' }}>
-              <input
-                type="text"
-                value={prompt}
-                onChange={(e) => handlePromptChange(index, e.target.value)}
-                placeholder="Enter a prompt"
-                style={{ color: 'black', border: '1px solid black', marginRight: '10px', padding: '5px' }}
-              />
-              <button type="submit" disabled={isLoading[index]} style={{ color: 'black', border: '1px solid black', padding: '5px' }}>
-                {isLoading[index] ? 'Generating...' : 'Generate'}
-              </button>
-              {errors[index] && <p style={{ color: 'red' }}>{errors[index]}</p>}
-            </form>
-            {audioUrls[index] && (
-              <div>
-                <h2>Generated Music:</h2>
-                <audio controls>
-                  <source src={audioUrls[index]} type="audio/wav" />
-                  Your browser does not support the audio element.
-                </audio>
-              </div>
-            )}
-          </div>
-        ))}
-        <button onClick={handleAddSlot} style={{ color: 'black', border: '1px solid black', padding: '5px', marginTop: '20px' }}>
-          Add Music Slot
+        <h1>Generate Music</h1>
+        <label htmlFor="moodSelect">Select Mood:</label>
+        <select id="moodSelect" value={selectedMood} onChange={handleMoodChange}>
+          {Object.keys(moods).map((mood) => (
+            <option key={mood} value={mood}>
+              {mood}
+            </option>
+          ))}
+        </select>
+        <button onClick={handleGenerateMusic} disabled={isLoading}>
+          {isLoading ? 'Generating...' : 'Generate Music'}
         </button>
+        {error && <p style={{ color: 'red' }}>{error}</p>}
+        {prompt && <p>Generated Prompt: {prompt}</p>}
+        {audioUrl && (
+          <div>
+            <h2>Generated Music:</h2>
+            <audio controls>
+              <source src={audioUrl} type="audio/wav"/>
+              Your browser does not support the audio element.
+            </audio>
+          </div>
+        )}
       </div>
       <style jsx>{`
         .container {
@@ -90,15 +99,31 @@ const Music: React.FC = () => {
           justify-content: center;
           align-items: center;
           min-height: 100vh;
-          background-color: white;
+          background-color: #f0f0f0;
         }
         .content {
           text-align: center;
+          width: 80%;
+          max-width: 600px;
+          padding: 20px;
+          background-color: white;
+          border-radius: 8px;
+          box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
         }
-        input[type="text"], button {
-          color: black;
-          border: 1px solid black;
-          padding: 5px;
+        select,
+        button {
+          padding: 8px;
+          margin-bottom: 10px;
+        }
+        button {
+          background-color: #0070f3;
+          color: white;
+          border: none;
+          cursor: pointer;
+          transition: background-color 0.3s ease;
+        }
+        button:hover {
+          background-color: #0056b3;
         }
       `}</style>
     </div>
